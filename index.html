@@ -439,7 +439,7 @@ h1{margin:0;font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.4px}
 <script>
 "use strict";
 /* ======================= core ======================= */
-var VER="2.0.0";
+var VER="2.0.1";
 var GAPI="https://generativelanguage.googleapis.com/v1beta/";
 var WSURL="wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=";
 var LIVE_NEW="gemini-3.8-live",LIVE_OLD="gemini-3.1-flash-live-preview";
@@ -507,11 +507,18 @@ function gemPick(){var c=null;try{c=JSON.parse(lsGet("jz.gm")||"null")}catch(e){
     full=top(ok.filter(function(n){return !/lite/.test(n)})),lite=top(ok.filter(function(n){return /lite/.test(n)})),
     o={t:ok.length?Date.now():0,smart:full||"gemini-flash-latest",fast:lite||full||"gemini-flash-latest"};
     if(ok.length)lsSet("jz.gm",JSON.stringify(o));gmP=null;return o},function(){gmP=null;return {smart:"gemini-flash-latest",fast:"gemini-flash-latest"}}))}
-function gemJSON(which,parts,ms){return gemPick().then(function(m){var model=m[which]||m.smart;
-  var body=function(js){var b={contents:[{role:"user",parts:parts}]};if(js)b.generationConfig={responseMimeType:"application/json",temperature:.4};return b};
-  var run=function(md){return gemCall(md,body(true),ms).then(function(r){return r.s===400?gemCall(md,body(false),ms):r})};
-  return run(model).then(function(r){if(r.s===404&&model!=="gemini-flash-latest")return run("gemini-flash-latest");return r})}).then(function(r){
-  if(r.s===401||r.s===403)throw new Error("key");if(r.s===429)throw new Error("quota");if(r.s!==200||!r.j)throw new Error("api"+r.s);
+function gemList(){var key=getKey();return fetch(GAPI+"models?pageSize=200",{headers:{"x-goog-api-key":key}}).then(function(r){return r.json()}).then(function(j){return arr(j&&j.models).filter(function(m){return arr(m.supportedGenerationMethods).indexOf("generateContent")>=0&&/gemini/.test(m.name)&&!/live|tts|image|audio|embed|banana|native|robot|computer/.test(m.name)}).map(function(m){return m.name.replace("models/","")})},function(){return []})}
+function wait(ms){return new Promise(function(r){setTimeout(r,ms)})}
+function gemJSON(which,parts,ms){var tried={},body=function(js){var b={contents:[{role:"user",parts:parts}]};if(js)b.generationConfig={responseMimeType:"application/json",temperature:.4};return b};
+  var once=function(md){return gemCall(md,body(true),ms).then(function(r){return r.s===400?gemCall(md,body(false),ms):r})};
+  var busy=function(r){return r.s===500||r.s===502||r.s===503||r.s===504};
+  var tryModel=function(md){tried[md]=1;return once(md).then(function(r){if(!busy(r))return r;return wait(2500).then(function(){return once(md)}).then(function(r2){if(!busy(r2))return r2;return wait(5000).then(function(){return once(md)})})},function(e){if(e.message==="net")return {s:599,j:null};throw e})};
+  return gemPick().then(function(m){var first=m[which]||m.smart;return tryModel(first).then(function(r){
+    if(r.s===200||r.s===401||r.s===403)return r;
+    return gemList().then(function(list){var rank=function(n){var v=/(\d+(?:\.\d+)?)/.exec(n);return (/flash/.test(n)?100:0)+(/pro/.test(n)?50:0)+(v?parseFloat(v[1]):0)-(/lite/.test(n)?5:0)};
+      list=list.filter(function(x){return !tried[x]}).sort(function(a,b){return rank(b)-rank(a)}).slice(0,4);
+      var i=0,last=r;return (function nx(){if(i>=list.length)return last;var md=list[i++];return tryModel(md).then(function(r2){last=r2;if(r2.s===200){if(which==="smart"){try{var o=JSON.parse(lsGet("jz.gm")||"{}");o.smart=md;o.t=Date.now();lsSet("jz.gm",JSON.stringify(o))}catch(e){}}return r2}if(r2.s===401||r2.s===403)return r2;return nx()})})()})})}).then(function(r){
+  if(r.s===401||r.s===403)throw new Error("key");if(r.s===429)throw new Error("quota");if(r.s===599)throw new Error("net");if(r.s>=500)throw new Error("busy");if(r.s!==200||!r.j)throw new Error("api"+r.s);
   var c=arr(r.j.candidates)[0]||{},t=arr((c.content||{}).parts).filter(function(p){return !p.thought}).map(function(p){return p.text||""}).join(""),m=t.match(/[\{\[][\s\S]*[\}\]]/);
   if(!m)throw new Error("parse");try{return JSON.parse(m[0])}catch(e){throw new Error("parse")}})}
 function errText(e){var m=e&&e.message||"";
@@ -519,6 +526,7 @@ function errText(e){var m=e&&e.message||"";
   if(m==="key")return "مفتاح Google لم يعمل. تحقق منه في منطقة الوالدين.";
   if(m==="quota")return "انتهى الحد المتاح لمفتاح Google الآن. حاول بعد قليل.";
   if(m==="net")return "تعذّر الاتصال بالإنترنت. تحقق من الشبكة وحاول مرة ثانية.";
+  if(m==="busy")return "خدمة Google مزدحمة الآن. اضغط «أعد المحاولة» بعد دقيقة.";
   if(m==="parse")return "لم أفهم الصفحات جيداً. جرّب صوراً أوضح.";
   return "حدث خطأ غير متوقع ("+m+"). حاول مرة ثانية."}
 
