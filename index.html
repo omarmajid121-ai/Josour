@@ -177,6 +177,8 @@ h1{margin:0;font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.4px}
 #clipLen button{height:30px;padding:0 10px;font-size:13px}
 #board.asking #stage{left:min(580px,48vw)}
 [dir=ltr] #bBack svg,[dir=ltr] #bPrev svg,[dir=ltr] #bNext svg{transform:scaleX(-1)}
+.cnv{width:min(820px,92vw);max-height:100%}
+.cnv svg{width:100%;height:auto;max-height:calc(100vh - 500px);min-height:200px;display:block;overflow:visible}
 #ink{position:absolute;inset:0;z-index:8;touch-action:none;pointer-events:none}
 #board.pen #ink{pointer-events:auto}
 #friend{position:absolute;right:20px;bottom:calc(112px + var(--safeB));width:min(470px,calc(100vw - 40px));padding:16px 18px;border-radius:26px;display:flex;gap:14px;align-items:flex-start;z-index:15}
@@ -439,7 +441,7 @@ h1{margin:0;font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.4px}
 <script>
 "use strict";
 /* ======================= core ======================= */
-var VER="2.0.4";
+var VER="2.1.0";
 var GAPI="https://generativelanguage.googleapis.com/v1beta/";
 var WSURL="wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=";
 var LIVE_NEW="gemini-3.8-live",LIVE_OLD="gemini-3.1-flash-live-preview";
@@ -854,7 +856,8 @@ function friendPrompt(){var k=L.kid,p=L.plan,mem=L.mem||{},kg=isKG(k.grade),lang
   "LANGUAGE: the lesson language is "+(lang==="en"?"English":"Arabic")+": board words, questions and key words stay in it. You can talk in both Arabic and English: answer in the language the child speaks to you, and if the child asks to switch, switch and keep teaching. Arabic = simple, warm Arabic for a Saudi child (light Saudi touch is fine, never hard words). English = simple, clear English for a young learner; in an English lesson for an Arabic-speaking child you may explain a hard word briefly in Arabic. "+(k.lang==="both"?"Say key words in both Arabic and English. ":"")+
   "ANSWER CHECKING (most important rule): you are a fair teacher. Every question has an expected answer (from the stage check or your own correct working). Before reacting, compare what the child actually said, wrote or chose with the correct answer. Only call it right when it truly matches. A wrong answer is never 'correct', 'great' or 'well done': say kindly it is not quite right yet ('almost!', 'let's check together') and give the next hint. If you did not clearly hear an answer, or only heard noise, a sound, or something unrelated, do NOT treat it as an answer: say you didn't hear and ask again. Never answer for the child and never assume. Messages starting with [APP CHECK] are the app's own verdict on a written or tapped answer: always follow them. give_star only after a verified correct answer or real effort after hints.\n"+
   "STYLE: very short sentences ("+(kg?"5-8 words":"8-14 words")+"), one idea at a time, speak slowly and expressively. Use the child's name only now and then. Praise effort, never intelligence. Never say 'wrong' or 'no'; say 'almost!' and give the next small step. Wait for answers; ask one question at a time.\n"+
-  "THE BOARD: you teach on a smart whiteboard. Always call show_stage(index) BEFORE you talk about a stage, then speak about what is shown. Use play_clip (3, 6, 9 or 15 seconds) to show the idea as a smooth motion clip while you narrate it, especially in hook and explain. The child can pause and replay it. Use board_action to animate while you talk: count (light objects one by one while you count aloud), highlight (an item), reveal, solve (show the answer), celebrate. When you ask a question that needs an answer, call ask_answer with mode write, draw, choice or voice (KG: prefer voice and choice). The child may also answer by speaking at any time; treat what they say as their answer. Messages in square brackets like [written answer: ...] come from the app, not the child.\n"+
+  "DYNAMIC TEACHING (very important): the lesson plan is a guide, not a script. Follow the child. If the child asks a question, wants more information, says they don't understand, or is curious about something related, STOP the plan and teach it properly right there: explain step by step, give examples, and SHOW it on the board with board_show (draw and write on the canvas, build diagrams with arrows and labels, count objects, show the steps one by one). Stay on it as long as the child needs, check understanding with a small question, then ask if they are ready to continue. Never jump to the next stage while the child is still asking or unsure; call show_stage only when the child is ready. Every explanation should have a visual: if you explain it, draw it.\n"+
+  "THE BOARD: you teach on a smart whiteboard. Call show_stage(index) BEFORE you talk about a planned stage, then speak about what is shown. Use play_clip (3, 6, 9 or 15 seconds) to show the idea as a smooth motion clip while you narrate it, especially in hook and explain. The child can pause and replay it. Use board_action to animate while you talk: count (light objects one by one while you count aloud), highlight (an item), reveal, solve (show the answer), celebrate. When you ask a question that needs an answer, call ask_answer with mode write, draw, choice or voice (KG: prefer voice and choice). The child may also answer by speaking at any time; treat what they say as their answer. Messages in square brackets like [written answer: ...] come from the app, not the child.\n"+
   "TIME: this lesson has "+minsFor(k)+" minutes. Pace the 6 stages to fit; the app tells you when one minute is left and when time is up.\n"+
   "LESSON FLOW: go through the 6 stages in order: hook, explore, explain, guided, quiz, recap. Use the hint ladder from the plan: re-ask, visual clue, do half together, then show and give a similar question. Two misses: go back to objects or pictures. Two quick right answers: a little harder. Call give_star when the child succeeds or tries hard (max 3 per lesson). At the recap stage summarise in 3 short points and call end_lesson with the summary, mastered skills and weak spots.\n"+
   "SAFETY (strict): stay kind and age-appropriate. Allowed: the lesson, any school question at the child's level, friendly chit-chat about animals, games, food, hobbies, and clean jokes and riddles; after 2-3 off-topic turns bring them back with a fun bridge. Never discuss adult, violent, scary, romantic, political or religious-debate topics; never ask for or repeat personal details (address, school, phone, photos); no links or purchases; never ask the child to keep secrets. If asked something not allowed: one calm sentence ('That's a question for Mum or Dad!') and a fun bridge back. If the child seems upset, scared or says someone hurt them: be gentle, don't ask for details, and tell them to talk to Mum, Dad or a trusted adult right now. For Islamic studies use only the book's exact wording.\n"+
@@ -864,6 +867,11 @@ var TOOLDECL=[{functionDeclarations:[
   {name:"show_stage",description:"Show stage number index (0-5) of the lesson on the board. Call before talking about a stage.",parameters:{type:"OBJECT",properties:{index:{type:"INTEGER"}},required:["index"]}},
   {name:"board_action",description:"Animate the board while you talk.",parameters:{type:"OBJECT",properties:{action:{type:"STRING",enum:["count","highlight","reveal","solve","celebrate","clear_ink"]},item:{type:"INTEGER",description:"item number from 1, for highlight"}},required:["action"]}},
   {name:"ask_answer",description:"Open the answer area for the child. After calling it, stop talking and wait for the child's real answer.",parameters:{type:"OBJECT",properties:{expected:{type:"STRING",description:"the correct answer to this question (number, word or option)"},mode:{type:"STRING",enum:["write","draw","choice","voice"]},prompt:{type:"STRING",description:"short question shown to the child"},options:{type:"ARRAY",items:{type:"STRING"},description:"for choice: 2-4 short options"}},required:["mode","prompt"]}},
+  {name:"board_show",description:"Create a NEW visual on the board right now, outside the lesson plan, to answer a question, explain more, or show the discussion. Use type canvas to draw and write freely: draw is a list of elements drawn one by one with animation, on a board that is 100 wide and 60 high (x 0-100 from left, y 0-60 from top). Or use a ready layout: objects (items with icon and n, plus op and result), cards, cycle, choice (items with icon and word), shapes (items with shape, n, word), fraction (parts, take, of), big (text, hl), letter.",parameters:{type:"OBJECT",properties:{
+    type:{type:"STRING",enum:["canvas","objects","cards","cycle","choice","shapes","fraction","big","letter"]},title:{type:"STRING",description:"short heading for the child, in the lesson language"},
+    draw:{type:"ARRAY",items:{type:"OBJECT",properties:{kind:{type:"STRING",enum:["text","number","emoji","line","arrow","curve","circle","rect"]},x:{type:"NUMBER"},y:{type:"NUMBER"},x2:{type:"NUMBER"},y2:{type:"NUMBER"},r:{type:"NUMBER"},w:{type:"NUMBER"},h:{type:"NUMBER"},text:{type:"STRING"},size:{type:"NUMBER",description:"text size 2-12, default 5"},color:{type:"STRING",description:"black, blue, red, green, orange, purple, pink, brown, yellow or gray"},fill:{type:"STRING"},bold:{type:"BOOLEAN"},arrow:{type:"BOOLEAN"},bend:{type:"NUMBER"}},required:["kind","x","y"]}},
+    items:{type:"ARRAY",items:{type:"OBJECT",properties:{icon:{type:"STRING",description:"one emoji"},word:{type:"STRING"},sub:{type:"STRING"},n:{type:"INTEGER"},shape:{type:"STRING"}}}},
+    op:{type:"STRING"},result:{type:"STRING"},text:{type:"STRING"},hl:{type:"STRING"},letter:{type:"STRING"},parts:{type:"INTEGER"},take:{type:"INTEGER"},of:{type:"INTEGER"},drag:{type:"BOOLEAN"},clip:{type:"INTEGER",description:"optional motion clip seconds: 3, 6, 9 or 15"}},required:["type"]}},
   {name:"play_clip",description:"Play a short motion clip of the current board scene (objects fly in, move, get counted, parts fill, steps light up in order) while you narrate it. Pick the length that fits what you will say.",parameters:{type:"OBJECT",properties:{seconds:{type:"INTEGER",description:"3, 6, 9 or 15"}},required:["seconds"]}},
   {name:"give_star",description:"Give the child a star with a celebration."},
   {name:"end_lesson",description:"Finish the lesson and show the recap.",parameters:{type:"OBJECT",properties:{summary:{type:"ARRAY",items:{type:"STRING"},description:"3 short recap points in the lesson language"},mastered:{type:"ARRAY",items:{type:"STRING"}},weak:{type:"ARRAY",items:{type:"STRING"}},likes:{type:"ARRAY",items:{type:"STRING"},description:"things the child said they like"}},required:["summary"]}}]}];
@@ -916,6 +924,7 @@ function runTool(name,a){
   if(name==="show_stage"){var i=Math.max(0,Math.min(5,parseInt(a.index,10)||0));renderStage(i);var s=L.plan.stages[i];return {shown:i,stage:s.stage,title:s.title,check:s.check}}
   if(name==="board_action"){boardAction(a.action,a.item);return {ok:true}}
   if(name==="ask_answer"){var st0=(L.plan.stages[L.stage]||{}).check||{};L.expect={a:String(a.expected||st0.answer||""),acc:arr(st0.accept).map(String)};askAnswer(a.mode,a.prompt,arr(a.options));watchAnswer();return {ok:true,expected:L.expect.a,note:"Now stop talking and wait for the child's real answer. Do not answer for the child. Only accept it if it matches the expected answer; the app will also send [APP CHECK] for written and tapped answers."}}
+  if(name==="board_show")return boardShow(a);
   if(name==="play_clip"){var sec=[3,6,9,15].indexOf(+a.seconds)>=0?+a.seconds:6;playClip(sec);return {playing:sec}}
   if(name==="give_star"){if(L.stars<3){L.stars++;celebrate()}return {stars:L.stars}}
   if(name==="end_lesson"){endLesson(a);return {ok:true}}
@@ -923,7 +932,7 @@ function runTool(name,a){
 
 /* ---------- board scenes ---------- */
 var objs=[],reveals=[];
-function renderStage(i,silent){if(!L)return;L.stage=i;var s=L.plan.stages[i]||{},sc=s.scene||{};
+function renderStage(i,silent,ov){if(!L)return;if(!ov)L.stage=i;var s=ov||L.plan.stages[i]||{},sc=s.scene||{};L.curScene=sc;L.custom=!!ov;
   var D=$("#dots");D.innerHTML=L.plan.stages.map(function(_,j){return '<i class="'+(j<i?"done":j===i?"now":"")+'"></i>'}).join("");
   $("#sTitle").textContent=s.title||"";var box=$("#scene");box.innerHTML="";objs=[];reveals=[];
   var add=function(el){box.appendChild(el);reveals.push(el);return el},mk=function(tag,cls,html){var e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e};
@@ -943,12 +952,13 @@ function renderStage(i,silent){if(!L)return;L.stage=i;var s=L.plan.stages[i]||{}
     svg+='</svg>';var F=add(mk("div","shp",svg));$$("path",F).forEach(function(pt){pt.onclick=function(){pt.setAttribute("fill",pt.getAttribute("fill")==="#FF9F0A"?"#F2F2F7":"#FF9F0A")}});
     add(mk("div","big",'<span class="hl">'+arNumIf(tk)+'/'+arNumIf(p)+'</span>'+(sc.of?" × "+arNumIf(sc.of):"")))}
   else if(t==="shapes"){arr(sc.items).slice(0,4).forEach(function(it){var n=Math.max(1,Math.min(6,parseInt(it.n,10)||1)),G=mk("div","grp");for(var j=0;j<n;j++){var e=mk("span","shp",shapeSVG(it.shape));G.appendChild(e);reveals.push(e);objs.push(e);e.onclick=function(){this.classList.toggle("lit")}}var lb=mk("div","");lb.style.cssText="width:100%;text-align:center;font-size:20px;font-weight:700";lb.textContent=it.label||"";G.appendChild(lb);box.appendChild(G)})}
+  else if(t==="canvas"){var cv=mk("div","cnv");cv.innerHTML=canvasSVG(arr(sc.draw));box.appendChild(cv);setTimeout(function(){drawCanvas(Math.max(1800,arr(sc.draw).length*450))},120)}
   else{var txt=String(sc.text||s.title||""),hl=String(sc.hl||"");var B=add(mk("div","big",hl&&txt.indexOf(hl)>=0?esc(txt).replace(esc(hl),'<span class="hl">'+esc(hl)+'</span>'):esc(txt)));if(!txt)B.style.display="none";if(t!=="big"&&!txt)$("#sTitle").textContent=s.title||""}
   var H=$("#sHints");H.innerHTML="";var hint={objects:sc.drag?"اسحب الأشياء إلى الصحن":"المس الأشياء لتعدّها",letter:"ارسم الحرف بالقلم فوقه",choice:"المس جوابك",fraction:"المس الأجزاء لتلوّنها",shapes:"المس الأشكال",cycle:"قل لي ماذا بعد"}[t];
   if(hint&&L.lang==="en")hint={objects:sc.drag?"Drag the objects into the bowl":"Tap to count",letter:"Trace it with the pen",choice:"Tap your answer",fraction:"Tap the parts",shapes:"Tap the shapes",cycle:"Tell me what comes next"}[t];
   if(hint)H.innerHTML='<span>'+esc(hint)+'</span>';
   applyStyle(L.style||styleFor(i));clipStop();var cb=$("#clip");cb.classList.remove("in");setTimeout(function(){cb.classList.add("in")},400);
-  revealAll();hideAns();inkClear();if(i>=5)L.kid.resume=null;else L.kid.resume={lesson:L.lesson.id,stage:i};saveKids()}
+  revealAll();if(!ov){hideAns();inkClear();if(i>=5)L.kid.resume=null;else L.kid.resume={lesson:L.lesson.id,stage:i};saveKids()}}
 function arNumIf(n){return L&&L.lang==="ar"?arNum(n):String(n)}
 function shapeSVG(s){var p={circle:'<circle cx="40" cy="40" r="32"/>',square:'<rect x="10" y="10" width="60" height="60" rx="4"/>',rectangle:'<rect x="4" y="18" width="72" height="44" rx="4"/>',triangle:'<path d="M40 8 L74 70 H6 Z"/>',star:'<path d="M40 6l10 22 24 3-18 16 5 24-21-12-21 12 5-24L6 31l24-3z"/>',hexagon:'<path d="M22 8h36l18 32-18 32H22L4 40z"/>'}[s]||'<circle cx="40" cy="40" r="32"/>';
   return '<svg width="80" height="80" viewBox="0 0 80 80" role="img" aria-label="'+esc(s)+'" style="fill:#7FB6FF;stroke:#0A4F9E;stroke-width:3">'+p+'</svg>'}
@@ -969,13 +979,42 @@ function makeDrag(o){o.style.cursor="grab";o.addEventListener("pointerdown",func
     if(inside&&o.parentNode!==dz){dz.appendChild(o);var n=dz.children.length,left=objs.filter(function(x){return x.parentNode!==dz}).length;if(!left){celebrate();sendText("[The child dragged all "+n+" objects into the bowl]")}}};
   o.addEventListener("pointermove",mv);o.addEventListener("pointerup",up);o.addEventListener("pointercancel",up)})}
 
+/* ---------- live board drawing (friend draws, writes and animates on the fly) ---------- */
+var PAL={black:"#1C1C1E",blue:"#0A84FF",red:"#FF453A",green:"#30B05A",orange:"#FF9F0A",purple:"#7B5CE6",pink:"#FF3EA5",brown:"#8B5A2B",yellow:"#F2B705",gray:"#8E8E93"};
+function canvasSVG(items){var o='<svg viewBox="0 0 100 60" role="img" aria-label="رسم على السبورة"><defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>';
+  items.slice(0,40).forEach(function(d,i){var c=PAL[d.color]||(/^#[0-9a-f]{3,6}$/i.test(d.color||"")?d.color:"#1C1C1E"),x=+d.x||0,y=+d.y||0,sz=Math.max(1.5,Math.min(14,+d.size||5)),k=d.kind||"text",fill=d.fill?(PAL[d.fill]||c):"none",at=' data-i="'+i+'" class="cv-'+k+'"';
+    if(k==="line"||k==="arrow")o+='<path'+at+' d="M'+x+' '+y+' L'+(+d.x2||x)+' '+(+d.y2||y)+'" stroke="'+c+'" stroke-width=".7" stroke-linecap="round" fill="none" pathLength="1"'+(k==="arrow"?' marker-end="url(#ah)"':'')+'/>';
+    else if(k==="curve")o+='<path'+at+' d="M'+x+' '+y+' Q'+(((x+(+d.x2||x))/2)+(+d.bend||0))+' '+(((y+(+d.y2||y))/2)-(+d.bend||8))+' '+(+d.x2||x)+' '+(+d.y2||y)+'" stroke="'+c+'" stroke-width=".7" stroke-linecap="round" fill="none" pathLength="1"'+(d.arrow?' marker-end="url(#ah)"':'')+'/>';
+    else if(k==="circle")o+='<circle'+at+' cx="'+x+'" cy="'+y+'" r="'+(+d.r||6)+'" stroke="'+c+'" stroke-width=".7" fill="'+fill+'" fill-opacity=".25" pathLength="1"/>';
+    else if(k==="rect")o+='<rect'+at+' x="'+x+'" y="'+y+'" width="'+(+d.w||12)+'" height="'+(+d.h||8)+'" rx="1.2" stroke="'+c+'" stroke-width=".7" fill="'+fill+'" fill-opacity=".25" pathLength="1"/>';
+    else if(k==="emoji")o+='<text'+at+' x="'+x+'" y="'+y+'" font-size="'+sz*1.6+'" text-anchor="middle" dominant-baseline="middle">'+esc(String(d.text||"⭐").slice(0,8))+'</text>';
+    else{var words=String(d.text||"").slice(0,120).split(/\s+/);o+='<text'+at+' x="'+x+'" y="'+y+'" font-size="'+sz+'" fill="'+c+'" font-weight="'+(k==="number"||d.bold?800:600)+'" text-anchor="middle" dominant-baseline="middle">'+words.map(function(w,j){return '<tspan class="w">'+esc(w)+(j<words.length-1?" ":"")+'</tspan>'}).join("")+'</text>'}});
+  return o+'</svg>'}
+function drawCanvas(D){var els=$$("#scene .cnv [data-i]");if(!els.length)return;var step=D/(els.length+1);
+  els.forEach(function(el,i){var d=i*step,cl=el.getAttribute("class");
+    if(/cv-(line|arrow|curve|circle|rect)/.test(cl)){el.style.strokeDasharray="1";A(el,[{strokeDashoffset:1,fillOpacity:0},{strokeDashoffset:0,fillOpacity:0,offset:.75},{strokeDashoffset:0,fillOpacity:.25}],{duration:Math.min(900,step*1.4),delay:d,easing:"ease-in-out"})}
+    else if(/cv-emoji/.test(cl))A(el,[{opacity:0,transform:"scale(.3)",transformOrigin:"center",transformBox:"fill-box"},{opacity:1,transform:"scale(1.15)",transformBox:"fill-box",transformOrigin:"center",offset:.7},{opacity:1,transform:"none",transformBox:"fill-box",transformOrigin:"center"}],{duration:Math.min(700,step*1.2),delay:d});
+    else{var ws=$$("tspan",el);ws.forEach(function(w,j){A(w,[{opacity:0},{opacity:1}],{duration:220,delay:d+j*Math.min(160,step/Math.max(1,ws.length)),easing:"ease-out"})})}})}
+function boardShow(a){if(!L)return {error:"no lesson"};var t=["objects","cards","cycle","fraction","shapes","big","letter","choice","canvas"].indexOf(a.type)>=0?a.type:(arr(a.draw).length?"canvas":"big"),it=arr(a.items),sc={type:t};
+  if(t==="objects"){sc.groups=it.map(function(x){return {icon:x.icon||"⭐",n:x.n||1}});sc.op=a.op||"";sc.result=a.result===undefined?"":String(a.result);sc.drag=!!a.drag}
+  else if(t==="shapes")sc.items=it.map(function(x){return {shape:x.shape||"circle",n:x.n||1,label:x.word||""}});
+  else if(t==="fraction"){sc.parts=a.parts;sc.take=a.take;sc.of=a.of||0}
+  else if(t==="big"){sc.text=a.text||a.title||"";sc.hl=a.hl||""}
+  else if(t==="letter"){sc.letter=a.letter||a.text||"";sc.words=it}
+  else if(t==="canvas")sc.draw=arr(a.draw);
+  else sc.items=it;
+  renderStage(L.stage,true,{title:String(a.title||""),scene:sc});
+  if(a.clip&&t!=="canvas")setTimeout(function(){playClip([3,6,9,15].indexOf(+a.clip)>=0?+a.clip:6)},400);
+  return {shown:t,note:"The board now shows your new visual. Talk about it. Call show_stage only when the child is ready to go back to the lesson plan."}}
+
 /* ---------- motion clips (3-15 s, play / pause) ---------- */
 var CL={anims:[],dur:6000,len:6,state:"idle",raf:0};
 var RM=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
 function clipStop(){$$("#fx .burst,#fx .speed").forEach(function(x){x.remove()});CL.anims.forEach(function(a){try{a.cancel()}catch(e){}});CL.anims=[];CL.state="idle";cancelAnimationFrame(CL.raf);clipUI()}
 function A(el,kf,o){if(!el||!el.animate)return;try{var a=el.animate(kf,Object.assign({fill:"both",easing:"cubic-bezier(.16,1,.3,1)"},o));CL.anims.push(a);return a}catch(e){}}
 function playClip(sec){if(!L)return;clipStop();CL.len=sec||CL.len;var D=CL.dur=CL.len*1000;$$("#clipLen button").forEach(function(b){b.classList.toggle("on",+b.getAttribute("data-d")===CL.len)});
-  var sc=(L.plan.stages[L.stage]||{}).scene||{},t=sc.type,quiz=L.plan.stages[L.stage]&&L.plan.stages[L.stage].stage==="quiz",box=$("#scene");
+  var sc=L.curScene||(L.plan.stages[L.stage]||{}).scene||{},t=sc.type,quiz=!L.custom&&L.plan.stages[L.stage]&&L.plan.stages[L.stage].stage==="quiz",box=$("#scene");
+  if(t==="canvas"){drawCanvas(D);var pb=$("#clipBar i");A(pb,[{transform:"scaleX(0)"},{transform:"scaleX(1)"}],{duration:D,easing:"linear"});CL.state="play";var mm=CL.anims[CL.anims.length-1];if(mm)mm.onfinish=function(){CL.state="done";clipUI()};clipUI();return}
   $$("#scene .cnt").forEach(function(c){c.remove()});
   A(box,[{transform:"scale(.96)"},{transform:"scale(1.03)"}],{duration:D,easing:"ease-in-out"});
   var items=$$("#scene .obj,#scene .card,#scene .shp,#scene .arrow,#scene .op,#scene .big,#scene .letter,#scene .res");
