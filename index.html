@@ -441,7 +441,7 @@ h1{margin:0;font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.4px}
 <script>
 "use strict";
 /* ======================= core ======================= */
-var VER="2.1.0";
+var VER="2.1.1";
 var GAPI="https://generativelanguage.googleapis.com/v1beta/";
 var WSURL="wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=";
 var LIVE_NEW="gemini-3.8-live",LIVE_OLD="gemini-3.1-flash-live-preview";
@@ -511,7 +511,9 @@ function gemPick(){var c=null;try{c=JSON.parse(lsGet("jz.gm")||"null")}catch(e){
     if(ok.length)lsSet("jz.gm",JSON.stringify(o));gmP=null;return o},function(){gmP=null;return {smart:"gemini-flash-latest",fast:"gemini-flash-latest"}}))}
 function gemList(){var key=getKey();return fetch(GAPI+"models?pageSize=200",{headers:{"x-goog-api-key":key}}).then(function(r){return r.json()}).then(function(j){return arr(j&&j.models).filter(function(m){return arr(m.supportedGenerationMethods).indexOf("generateContent")>=0&&/gemini/.test(m.name)&&!/live|tts|image|audio|embed|banana|native|robot|computer/.test(m.name)}).map(function(m){return m.name.replace("models/","")})},function(){return []})}
 function wait(ms){return new Promise(function(r){setTimeout(r,ms)})}
-function gemJSON(which,parts,ms){var tried={},body=function(js){var b={contents:[{role:"user",parts:parts}]};if(js)b.generationConfig={responseMimeType:"application/json",temperature:.4};return b};
+function gemJSON(which,parts,ms){return gemJSON1(which,parts,ms).catch(function(e){if(e.message!=="parse")throw e;return gemJSON1(which,parts.concat([{text:"Your previous reply was not valid, complete JSON. Reply again with ONLY one complete, valid, compact JSON object. Keep every text field short."}]),ms)})}
+function parseLoose(t){t=String(t||"").replace(/```(?:json)?/gi,"").trim();var m=t.match(/[\{\[][\s\S]*[\}\]]/);if(!m)return null;try{return JSON.parse(m[0])}catch(e){}try{return JSON.parse(m[0].replace(/,\s*([\}\]])/g,"$1").replace(/[\u0000-\u001f]+/g," "))}catch(e){}return null}
+function gemJSON1(which,parts,ms){var tried={},body=function(js){var b={contents:[{role:"user",parts:parts}]};if(js)b.generationConfig={responseMimeType:"application/json",temperature:.4,maxOutputTokens:32768};return b};
   var once=function(md){return gemCall(md,body(true),ms).then(function(r){return r.s===400?gemCall(md,body(false),ms):r})};
   var busy=function(r){return r.s===500||r.s===502||r.s===503||r.s===504};
   var tryModel=function(md){tried[md]=1;return once(md).then(function(r){if(!busy(r))return r;return wait(2500).then(function(){return once(md)}).then(function(r2){if(!busy(r2))return r2;return wait(5000).then(function(){return once(md)})})},function(e){if(e.message==="net")return {s:599,j:null};throw e})};
@@ -521,8 +523,8 @@ function gemJSON(which,parts,ms){var tried={},body=function(js){var b={contents:
       list=list.filter(function(x){return !tried[x]}).sort(function(a,b){return rank(b)-rank(a)}).slice(0,4);
       var i=0,last=r;return (function nx(){if(i>=list.length)return last;var md=list[i++];return tryModel(md).then(function(r2){last=r2;if(r2.s===200){if(which==="smart"){try{var o=JSON.parse(lsGet("jz.gm")||"{}");o.smart=md;o.t=Date.now();lsSet("jz.gm",JSON.stringify(o))}catch(e){}}return r2}if(r2.s===401||r2.s===403)return r2;return nx()})})()})})}).then(function(r){
   if(r.s===401||r.s===403)throw new Error("key");if(r.s===429)throw new Error("quota");if(r.s===599)throw new Error("net");if(r.s>=500)throw new Error("busy");if(r.s!==200||!r.j)throw new Error("api"+r.s);
-  var c=arr(r.j.candidates)[0]||{},t=arr((c.content||{}).parts).filter(function(p){return !p.thought}).map(function(p){return p.text||""}).join(""),m=t.match(/[\{\[][\s\S]*[\}\]]/);
-  if(!m)throw new Error("parse");try{return JSON.parse(m[0])}catch(e){throw new Error("parse")}})}
+  var c=arr(r.j.candidates)[0]||{},t=arr((c.content||{}).parts).filter(function(p){return !p.thought}).map(function(p){return p.text||""}).join(""),o=parseLoose(t);
+  if(o===null)throw new Error("parse");return o})}
 function errText(e){var m=e&&e.message||"";
   if(m==="nokey")return "أضف مفتاح Google AI أولاً من منطقة الوالدين.";
   if(m==="key")return "مفتاح Google لم يعمل. تحقق منه في منطقة الوالدين.";
@@ -530,7 +532,7 @@ function errText(e){var m=e&&e.message||"";
   if(m==="net")return "تعذّر الاتصال بالإنترنت. تحقق من الشبكة وحاول مرة ثانية.";
   if(m==="slow")return "استغرق التجهيز وقتاً طويلاً لأن Google مزدحم. اضغط «أعد المحاولة».";
   if(m==="busy")return "خدمة Google مزدحمة الآن. اضغط «أعد المحاولة» بعد دقيقة.";
-  if(m==="parse")return "لم أفهم الصفحات جيداً. جرّب صوراً أوضح.";
+  if(m==="parse")return "لم يكتمل تجهيز الدرس من Google. اضغط «أعد المحاولة».";
   return "حدث خطأ غير متوقع ("+m+"). حاول مرة ثانية."}
 
 /* ======================= files: images, PDF, Word ======================= */
@@ -668,7 +670,9 @@ $("#fDoc").onchange=function(e){var fs=Array.prototype.slice.call(e.target.files
   if(docx){toast("جاري قراءة ملف Word…");return fileBuf(docx).then(docxText).then(function(t){if(!t||t.length<20)throw new Error("empty");createLesson([],t.slice(0,60000),1)},function(){toast("تعذّر فتح ملف Word. احفظه PDF وجرّب مرة ثانية.",4500)})}
   if(imgs.length){Promise.all(imgs.map(function(f){return fileURL(f).then(function(u){return enhance(u,1600)})})).then(function(ps){scanSheet(ps)},function(){toast("تعذّر فتح بعض الصور.")});return}
   toast("نوع الملف غير مدعوم. استخدم PDF أو Word أو صور.",4000)};
-function handlePdf(f){toast("جاري فتح الملف…");fileBuf(f).then(pdfOpen).then(function(pdf){var n=pdf.numPages;
+function bufB64(buf){var u=new Uint8Array(buf),str="";for(var k=0;k<u.length;k+=8192)str+=String.fromCharCode.apply(null,u.subarray(k,k+8192));return btoa(str)}
+function handlePdf(f){toast("جاري فتح الملف…");var raw="";fileBuf(f).then(function(buf){if(buf.byteLength<12e6)raw=bufB64(buf);return pdfOpen(buf)}).then(function(pdf){var n=pdf.numPages;
+  if(n<=10&&raw)return createLesson([],"",n,raw);
   if(n<=10)return pdfRender(pdf,1,n).then(function(ps){createLesson(ps,"",n)});
   openSheet('<div class="hd"><b>الملف فيه '+arNum(n)+' صفحة</b><button class="ibtn" data-close aria-label="إغلاق"><svg class="icon"><use href="#i-x"/></svg></button></div><p style="margin:0;color:var(--sub)">اختر صفحات هذا الدرس.</p><div class="group"><div class="row"><label for="pf">من صفحة</label><input type="text" inputmode="numeric" id="pf" value="1"></div><div class="row"><label for="pt">إلى صفحة</label><input type="text" inputmode="numeric" id="pt" value="'+Math.min(n,6)+'"></div></div><div id="pErr"></div><div style="display:flex;justify-content:flex-end"><button class="btn pri" id="pGo">جهّز الدرس</button></div>',function(sh){
     $("#pGo",sh).onclick=function(){var a=parseInt($("#pf",sh).value,10),b=parseInt($("#pt",sh).value,10);
@@ -677,10 +681,10 @@ function handlePdf(f){toast("جاري فتح الملف…");fileBuf(f).then(pdf
       closeSheet();toast("جاري تجهيز الصفحات…");pdfRender(pdf,a,b).then(function(ps){createLesson(ps,"",ps.length)},function(){toast("تعذّر قراءة صفحات الملف.")})}})},function(){toast("تعذّر فتح ملف PDF. قد يكون مقفلاً أو تالفاً.",4500)})}
 
 /* ---------- lesson builder ---------- */
-function createLesson(pages,text,count){var k=kidById(selKid);if(!k)return;
+function createLesson(pages,text,count,pdf){var k=kidById(selKid);if(!k)return;
   var l={id:uid(),kid:k.id,sub:selSub,title:"",pages:count||pages.length,st:"busy",at:Date.now(),icon:"📄"};l.est=text&&!pages.length?35:25+12*Math.max(1,l.pages);
   S.lessons.push(l);saveLessons();
-  dbSet("pages:"+l.id,{imgs:pages,text:text||""}).then(function(){buildLesson(l)});
+  dbSet("pages:"+l.id,{imgs:pages,text:text||"",pdf:pdf||""}).then(function(){buildLesson(l)});
   ptab="lessons";renderParent();toast("بدأ تجهيز الدرس. الوقت المتوقع "+(l.est>=60?arNum(Math.ceil(l.est/60))+" دقيقة":arNum(l.est)+" ثانية")+" تقريباً.")}
 function lessonPrompt(k,sub){var kg=isKG(k.grade);
   return "You are an expert early-years and primary teacher and instructional designer. You receive pages from a child's school book (images or text). Build an interactive smart-whiteboard lesson for ONE child.\n"+
@@ -707,6 +711,7 @@ function buildLesson(l){var k=kidById(l.kid);if(!k)return;
   l.st="busy";l.err="";l.at=Date.now();saveLessons();if(cur==="parent"&&ptab==="lessons")renderParent();
   dbGet("pages:"+l.id).then(function(pg){pg=safeObj(pg,{imgs:[],text:""});
     var parts=[{text:lessonPrompt(k,l.sub)}];
+    if(pg.pdf)parts.push({inlineData:{mimeType:"application/pdf",data:pg.pdf}});
     arr(pg.imgs).forEach(function(u,i){var m=/^data:(.*?);base64,(.*)$/.exec(u);if(m){parts.push({text:"Page "+(i+1)+":"});parts.push({inlineData:{mimeType:m[1],data:m[2]}})}});
     if(pg.text)parts.push({text:"Document text:\n"+pg.text});
     if(parts.length<2)throw new Error("parse");
