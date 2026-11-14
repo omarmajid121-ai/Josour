@@ -439,7 +439,7 @@ h1{margin:0;font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.4px}
 <script>
 "use strict";
 /* ======================= core ======================= */
-var VER="2.0.3";
+var VER="2.0.4";
 var GAPI="https://generativelanguage.googleapis.com/v1beta/";
 var WSURL="wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=";
 var LIVE_NEW="gemini-3.8-live",LIVE_OLD="gemini-3.1-flash-live-preview";
@@ -852,6 +852,7 @@ function friendPrompt(){var k=L.kid,p=L.plan,mem=L.mem||{},kg=isKG(k.grade),lang
   var st=p.stages.map(function(s,i){return i+". ["+s.stage+"] title: "+s.title+" | teach: "+s.teach+" | scene: "+JSON.stringify(s.scene)+" | check: "+JSON.stringify(s.check)+" | hints: "+JSON.stringify(s.hints)}).join("\n");
   return "You are "+(k.friend||"Noori")+", the personal study friend of "+k.name+" ("+gradeName(k.grade)+", a "+(k.voice==="boy"?"boy's":"girl's")+" profile). You speak as a child the same age: friendly, warm, funny, creative, smart and shining. You love learning by playing: little games, riddles, silly voices, playful challenges, celebrating every effort. Inside, you think like an expert early-years teacher of "+subName(L.lesson.sub)+" who knows exactly how children learn.\n"+
   "LANGUAGE: the lesson language is "+(lang==="en"?"English":"Arabic")+": board words, questions and key words stay in it. You can talk in both Arabic and English: answer in the language the child speaks to you, and if the child asks to switch, switch and keep teaching. Arabic = simple, warm Arabic for a Saudi child (light Saudi touch is fine, never hard words). English = simple, clear English for a young learner; in an English lesson for an Arabic-speaking child you may explain a hard word briefly in Arabic. "+(k.lang==="both"?"Say key words in both Arabic and English. ":"")+
+  "ANSWER CHECKING (most important rule): you are a fair teacher. Every question has an expected answer (from the stage check or your own correct working). Before reacting, compare what the child actually said, wrote or chose with the correct answer. Only call it right when it truly matches. A wrong answer is never 'correct', 'great' or 'well done': say kindly it is not quite right yet ('almost!', 'let's check together') and give the next hint. If you did not clearly hear an answer, or only heard noise, a sound, or something unrelated, do NOT treat it as an answer: say you didn't hear and ask again. Never answer for the child and never assume. Messages starting with [APP CHECK] are the app's own verdict on a written or tapped answer: always follow them. give_star only after a verified correct answer or real effort after hints.\n"+
   "STYLE: very short sentences ("+(kg?"5-8 words":"8-14 words")+"), one idea at a time, speak slowly and expressively. Use the child's name only now and then. Praise effort, never intelligence. Never say 'wrong' or 'no'; say 'almost!' and give the next small step. Wait for answers; ask one question at a time.\n"+
   "THE BOARD: you teach on a smart whiteboard. Always call show_stage(index) BEFORE you talk about a stage, then speak about what is shown. Use play_clip (3, 6, 9 or 15 seconds) to show the idea as a smooth motion clip while you narrate it, especially in hook and explain. The child can pause and replay it. Use board_action to animate while you talk: count (light objects one by one while you count aloud), highlight (an item), reveal, solve (show the answer), celebrate. When you ask a question that needs an answer, call ask_answer with mode write, draw, choice or voice (KG: prefer voice and choice). The child may also answer by speaking at any time; treat what they say as their answer. Messages in square brackets like [written answer: ...] come from the app, not the child.\n"+
   "TIME: this lesson has "+minsFor(k)+" minutes. Pace the 6 stages to fit; the app tells you when one minute is left and when time is up.\n"+
@@ -862,7 +863,7 @@ function friendPrompt(){var k=L.kid,p=L.plan,mem=L.mem||{},kg=isKG(k.grade),lang
 var TOOLDECL=[{functionDeclarations:[
   {name:"show_stage",description:"Show stage number index (0-5) of the lesson on the board. Call before talking about a stage.",parameters:{type:"OBJECT",properties:{index:{type:"INTEGER"}},required:["index"]}},
   {name:"board_action",description:"Animate the board while you talk.",parameters:{type:"OBJECT",properties:{action:{type:"STRING",enum:["count","highlight","reveal","solve","celebrate","clear_ink"]},item:{type:"INTEGER",description:"item number from 1, for highlight"}},required:["action"]}},
-  {name:"ask_answer",description:"Open the answer area for the child.",parameters:{type:"OBJECT",properties:{mode:{type:"STRING",enum:["write","draw","choice","voice"]},prompt:{type:"STRING",description:"short question shown to the child"},options:{type:"ARRAY",items:{type:"STRING"},description:"for choice: 2-4 short options"}},required:["mode","prompt"]}},
+  {name:"ask_answer",description:"Open the answer area for the child. After calling it, stop talking and wait for the child's real answer.",parameters:{type:"OBJECT",properties:{expected:{type:"STRING",description:"the correct answer to this question (number, word or option)"},mode:{type:"STRING",enum:["write","draw","choice","voice"]},prompt:{type:"STRING",description:"short question shown to the child"},options:{type:"ARRAY",items:{type:"STRING"},description:"for choice: 2-4 short options"}},required:["mode","prompt"]}},
   {name:"play_clip",description:"Play a short motion clip of the current board scene (objects fly in, move, get counted, parts fill, steps light up in order) while you narrate it. Pick the length that fits what you will say.",parameters:{type:"OBJECT",properties:{seconds:{type:"INTEGER",description:"3, 6, 9 or 15"}},required:["seconds"]}},
   {name:"give_star",description:"Give the child a star with a celebration."},
   {name:"end_lesson",description:"Finish the lesson and show the recap.",parameters:{type:"OBJECT",properties:{summary:{type:"ARRAY",items:{type:"STRING"},description:"3 short recap points in the lesson language"},mastered:{type:"ARRAY",items:{type:"STRING"}},weak:{type:"ARRAY",items:{type:"STRING"}},likes:{type:"ARRAY",items:{type:"STRING"},description:"things the child said they like"}},required:["summary"]}}]}];
@@ -874,7 +875,7 @@ function connectLive(){if(!L||L.ended)return;if(!audioInit()){boardErr("تعذّ
 function openWs(){var my=L,ws;try{ws=new WebSocket(WSURL+encodeURIComponent(getKey()))}catch(e){boardErr("تعذّر الاتصال.",true);return}
   my.ws=ws;my.ready=false;ws.binaryType="arraybuffer";
   ws.onopen=function(){var s={model:"models/"+my.model,generationConfig:{responseModalities:["AUDIO"],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:VOICES[my.kid.voice||"girl"].name}}}},systemInstruction:{parts:[{text:friendPrompt()}]},tools:TOOLDECL};
-    if(my.attempt<2){s.inputAudioTranscription={};s.outputAudioTranscription={};s.realtimeInputConfig={automaticActivityDetection:{startOfSpeechSensitivity:"START_SENSITIVITY_HIGH",prefixPaddingMs:60,silenceDurationMs:my.kid&&isKG(my.kid.grade)?1100:800},activityHandling:"START_OF_ACTIVITY_INTERRUPTS"}}
+    if(my.attempt<2){s.inputAudioTranscription={};s.outputAudioTranscription={};s.realtimeInputConfig={automaticActivityDetection:{startOfSpeechSensitivity:"START_SENSITIVITY_LOW",prefixPaddingMs:60,silenceDurationMs:my.kid&&isKG(my.kid.grade)?1100:800},activityHandling:"START_OF_ACTIVITY_INTERRUPTS"}}
     if(my.attempt>=2)delete s.tools;
     else if(my.model===LIVE_NEW)s.tools=[{functionDeclarations:TOOLDECL[0].functionDeclarations.map(function(f){f=Object.assign({},f);f.behavior="BLOCKING";return f})}];
     ws.send(JSON.stringify({setup:s}))};
@@ -898,14 +899,14 @@ function startMicStream(){if(proc||!mic||!ctx)return;src=ctx.createMediaStreamSo
 function stopMic(){try{if(proc){proc.onaudioprocess=null;proc.disconnect()}if(src)src.disconnect();if(sink)sink.disconnect()}catch(e){}proc=src=sink=null;try{if(mic)mic.getTracks().forEach(function(t){t.stop()})}catch(e){}mic=null}
 var curAi="",turnOpen=false;
 function onLive(m){
-  if(m.setupComplete){L.ready=true;L.muted=L.mode==="turn";startMicStream();updateMic();setFriend("think");$("#cap").textContent="";
+  if(m.setupComplete){L.ready=true;L.muted=L.mode==="turn";try{startMicStream()}catch(e){toast(T("الميكروفون لا يعمل، تقدر تجاوب بالكتابة واللمس.","The microphone isn't working; you can answer by writing and tapping."),4500)}updateMic();setFriend("think");$("#cap").textContent="";
     var first=L.log.length?"(Reconnected) Continue the lesson from stage "+L.stage+" exactly where you were, with one short friendly line.":
       (L.stage>0?"(Start) Greet "+L.kid.name+" by name, remember where you stopped last time, and continue from stage "+L.stage+".":"(Start) Greet "+L.kid.name+" warmly and playfully by name in one or two short sentences, introduce yourself as "+(L.kid.friend||"")+", then start stage 0 (hook).");
     sendText(first);return}
   if(m.toolCall&&m.toolCall.functionCalls){var fcs=m.toolCall.functionCalls,out=[];fcs.forEach(function(fc){var r;try{r=runTool(fc.name,fc.args||{})}catch(e){r={error:"failed"}}out.push({id:fc.id,name:fc.name,response:r||{ok:true}})});wsSend({toolResponse:{functionResponses:out}});return}
   var sc=m.serverContent;if(!sc)return;
   if(sc.interrupted){flush();curAi="";setFriend("listen")}
-  if(sc.inputTranscription&&sc.inputTranscription.text){var t=sc.inputTranscription.text;L.log.push({w:"kid",t:t});}
+  if(sc.inputTranscription&&sc.inputTranscription.text){var t=sc.inputTranscription.text;L.log.push({w:"kid",t:t});if(askMode&&t.trim().length>1)clearTimeout(ansT)}
   if(sc.outputTranscription&&sc.outputTranscription.text){curAi+=sc.outputTranscription.text;$("#cap").textContent=curAi.slice(-220)}
   if(sc.modelTurn&&sc.modelTurn.parts){if(!turnOpen){turnOpen=true;curAi="";if(L.mode==="turn"){L.muted=true;updateMic()}}
     sc.modelTurn.parts.forEach(function(p){if(p.inlineData&&p.inlineData.data){var r=/rate=(\d+)/.exec(p.inlineData.mimeType||"");playChunk(p.inlineData.data,r?+r[1]:24000);setFriend("talk")}})}
@@ -914,7 +915,7 @@ function onLive(m){
 function runTool(name,a){
   if(name==="show_stage"){var i=Math.max(0,Math.min(5,parseInt(a.index,10)||0));renderStage(i);var s=L.plan.stages[i];return {shown:i,stage:s.stage,title:s.title,check:s.check}}
   if(name==="board_action"){boardAction(a.action,a.item);return {ok:true}}
-  if(name==="ask_answer"){askAnswer(a.mode,a.prompt,arr(a.options));return {ok:true,note:"wait for the child's answer"}}
+  if(name==="ask_answer"){var st0=(L.plan.stages[L.stage]||{}).check||{};L.expect={a:String(a.expected||st0.answer||""),acc:arr(st0.accept).map(String)};askAnswer(a.mode,a.prompt,arr(a.options));watchAnswer();return {ok:true,expected:L.expect.a,note:"Now stop talking and wait for the child's real answer. Do not answer for the child. Only accept it if it matches the expected answer; the app will also send [APP CHECK] for written and tapped answers."}}
   if(name==="play_clip"){var sec=[3,6,9,15].indexOf(+a.seconds)>=0?+a.seconds:6;playClip(sec);return {playing:sec}}
   if(name==="give_star"){if(L.stars<3){L.stars++;celebrate()}return {stars:L.stars}}
   if(name==="end_lesson"){endLesson(a);return {ok:true}}
@@ -1145,10 +1146,16 @@ var askMode=null,askPrompt="",reading=false;
 function askAnswer(mode,prompt,options){askMode=mode;askPrompt=prompt||"";$("#ansQ").textContent=askPrompt;$("#readChip").innerHTML="";
   var write=mode==="write"||mode==="draw";$("#padWrap").classList.toggle("hide",!write);$("#ansBtns").classList.toggle("hide",!write);$("#voiceAns").classList.toggle("hide",mode!=="voice");
   var C=$("#choices");C.innerHTML="";C.classList.toggle("hide",mode!=="choice");
-  if(mode==="choice")options.slice(0,4).forEach(function(o,i){var b=document.createElement("button");b.innerHTML='<span>'+esc(o)+'</span>';b.style.animation="rise var(--m4) var(--out) both";b.style.animationDelay=(i*60)+"ms";b.onclick=function(){$$("#choices button").forEach(function(x){x.style.boxShadow=""});b.style.boxShadow="0 0 0 3px var(--blue)";sendText("[The child chose: "+o+"] (question: "+askPrompt+")")};C.appendChild(b)});
+  if(mode==="choice")options.slice(0,4).forEach(function(o,i){var b=document.createElement("button");b.innerHTML='<span>'+esc(o)+'</span>';b.style.animation="rise var(--m4) var(--out) both";b.style.animationDelay=(i*60)+"ms";b.onclick=function(){$$("#choices button").forEach(function(x){x.style.boxShadow=""});b.style.boxShadow="0 0 0 3px var(--blue)";clearTimeout(ansT);sendText("[The child chose: "+o+"] (question: "+askPrompt+") "+judge(o))};C.appendChild(b)});
   $("#ans").classList.add("on");$("#board").classList.add("asking");if(write)setTimeout(padSize,30);
   if(mode==="voice"&&L&&L.mode==="turn"){L.muted=false;updateMic()}}
-function hideAns(){$("#ans").classList.remove("on");$("#board").classList.remove("asking");askMode=null}
+function normAns(x){return String(x==null?"":x).replace(/[٠-٩]/g,function(d){return "٠١٢٣٤٥٦٧٨٩".indexOf(d)}).replace(/[۰-۹]/g,function(d){return "۰۱۲۳۴۵۶۷۸۹".indexOf(d)}).toLowerCase().replace(/[\u064B-\u0652\u0640]/g,"").replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي").replace(/[\s.,،؛;:!?؟"'()\[\]{}]/g,"").replace(/^ال/,"")}
+function judge(given){if(!L||!L.expect||!L.expect.a)return "";var g=normAns(given);if(!g)return "[APP CHECK: no answer given. Ask again kindly.]";
+  var ok=[L.expect.a].concat(L.expect.acc||[]).some(function(e){var n=normAns(e);return n&&(g===n||(n.length>2&&g.indexOf(n)>=0&&g.length<=n.length+4))});
+  return ok?"[APP CHECK: CORRECT. The expected answer was "+L.expect.a+".]":"[APP CHECK: NOT CORRECT. The child answered "+given+" but the correct answer is "+L.expect.a+". Do not say it is right. Encourage and give a hint.]"}
+var ansT=null;
+function watchAnswer(){clearTimeout(ansT);if(!L)return;var my=L;ansT=setTimeout(function(){if(L!==my||!askMode||speaking())return;sendText("[No answer from the child yet. Do NOT treat silence as an answer. Encourage gently, repeat the question in a simpler way, and wait.]")},isKG(L.kid.grade)?22000:16000)}
+function hideAns(){clearTimeout(ansT);$("#ans").classList.remove("on");$("#board").classList.remove("asking");askMode=null}
 $("#ansX").onclick=hideAns;
 $("#padClear").onclick=function(){padSize();$("#readChip").innerHTML=""};
 $("#padHint").onclick=function(){sendText("[The child asks for a hint for: "+askPrompt+"]")};
@@ -1160,9 +1167,9 @@ $("#padCheck").onclick=function(){if(reading)return;var c=$("#pad");if(!c._dirty
     if(!clear){$("#readChip").innerHTML='<span class="chip" style="background:var(--orangeBg);color:var(--orange)">'+T("ما قدرت أقرأها، اكتبها أكبر","I can't read it, write it bigger")+'</span>';sendText("[The child's written answer was not readable. Ask kindly to write it a bit bigger.]");return}
     showRead(rd)},function(e){reading=false;$("#padCheck").removeAttribute("disabled");$("#readChip").innerHTML='<span class="chip" style="background:var(--redBg);color:var(--red)">'+esc(errText(e))+'</span>';setFriend("listen")})};
 function showRead(rd){var en=L.lang==="en";$("#readChip").innerHTML='<span class="chip" style="background:var(--orangeBg);color:var(--orange)">'+(en?"I read: ":"قرأت: ")+esc(rd)+'</span><button class="btn sec" style="height:36px" id="notIt">'+(en?"Not this?":"مو هذا؟")+'</button>';
-  sendText("[written answer: "+rd+"] (question: "+askPrompt+")");
+  clearTimeout(ansT);sendText("[written answer: "+rd+"] (question: "+askPrompt+") "+judge(rd));
   $("#notIt").onclick=function(){$("#readChip").innerHTML='<input id="fixIn" aria-label="الجواب الصحيح" placeholder="'+(en?"type it":"اكتبه هنا")+'"><button class="btn pri" style="height:40px" id="fixGo">'+(en?"Send":"أرسل")+'</button>';$("#fixIn").focus();
-    $("#fixGo").onclick=function(){var v=$("#fixIn").value.trim();if(v){sendText("[The child corrected: they wrote "+v+", not "+rd+". Judge "+v+".]");$("#readChip").innerHTML='<span class="chip" style="background:var(--orangeBg);color:var(--orange)">'+esc(v)+'</span>'}}}}
+    $("#fixGo").onclick=function(){var v=$("#fixIn").value.trim();if(v){sendText("[The child corrected: they wrote "+v+", not "+rd+".] "+judge(v));$("#readChip").innerHTML='<span class="chip" style="background:var(--orangeBg);color:var(--orange)">'+esc(v)+'</span>'}}}}
 
 /* ---------- controls ---------- */
 $("#mic").onclick=function(){if(!L)return;if(!L.ready){if(!L.ws&&getKey()){$("#cap").textContent="";L.attempt=0;L.model=LIVE_NEW;connectLive()}return}
@@ -1177,7 +1184,7 @@ $("#rAgain").onclick=function(){if(!L)return;var k=L.kid.id,l=L.lesson.id;L.kid.
 $("#rDone").onclick=function(){leaveLesson(true)};
 
 /* ---------- end, memory, history ---------- */
-function endLesson(a){if(!L)return;L.endInfo=a;var en=L.lang==="en";
+function endLesson(a){if(!L)return;hideAns();L.endInfo=a;var en=L.lang==="en";
   $("#rStars").textContent="⭐".repeat(Math.max(1,L.stars));$("#rTitle").textContent=en?"Great job, "+L.kid.name+"!":"أحسنت يا "+L.kid.name+"!";
   $("#rList").innerHTML=arr(a.summary).slice(0,4).map(function(x){return "<li>"+esc(x)+"</li>"}).join("");
   $("#rAgain").textContent=en?"Play again":"نعيد الدرس";$("#rDone").textContent=en?"Done for today":"انتهينا اليوم";
