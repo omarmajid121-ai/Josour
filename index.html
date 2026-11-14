@@ -348,7 +348,7 @@ h1{margin:0;font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.4px}
 <script>
 "use strict";
 /* ======================= core ======================= */
-var VER="1.0.0";
+var VER="1.0.1";
 var GAPI="https://generativelanguage.googleapis.com/v1beta/";
 var WSURL="wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=";
 var LIVE_NEW="gemini-3.8-live",LIVE_OLD="gemini-3.1-flash-live-preview";
@@ -669,7 +669,7 @@ function renderKeyTab(m){var has=!!getKey();
   '<div class="note warn"><svg class="icon"><use href="#i-shield"/></svg><span>لخصوصية أطفالك، ننصح بمفتاح Google مدفوع. المفتاح المجاني يسمح لـ Google باستخدام المحادثات لتحسين خدماتها.</span></div>'+
   '<div id="kMsg"></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn pri" id="kTest">حفظ وتحقق</button>'+(has?'<button class="btn danger" id="kRm">إزالة المفتاح</button>':'')+'</div>';
   $("#kTest").onclick=function(){var v=$("#gk").value.trim();if(!v&&!has){$("#kMsg").innerHTML='<div class="note err">الصق المفتاح أولاً.</div>';return}
-    if(v){if(!/^[A-Za-z0-9_\-]{20,}$/.test(v)){$("#kMsg").innerHTML='<div class="note err">هذا لا يبدو مفتاح Google صحيحاً. انسخه كاملاً من Google AI Studio.</div>';return}lsSet("jz.key",v);lsSet("jz.gm","")}
+    if(v){v=v.replace(/\s+/g,"");if(v.length<20){$("#kMsg").innerHTML='<div class="note err">هذا لا يبدو مفتاح Google صحيحاً. انسخه كاملاً من Google AI Studio.</div>';return}lsSet("jz.key",v);lsSet("jz.gm","")}
     $("#kMsg").innerHTML='<div class="note"><span>جاري التحقق…</span></div>';
     fetch(GAPI+"models?pageSize=5",{headers:{"x-goog-api-key":getKey()}}).then(function(r){
       if(r.status===200){$("#kMsg").innerHTML='<div class="note ok">المفتاح يعمل. جسور جاهز.</div>';$("#kSt").textContent="متصل";gemPick()}
