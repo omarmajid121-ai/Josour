@@ -532,7 +532,7 @@ h1{margin:0;font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.4px}
 <script>
 "use strict";
 /* ======================= core ======================= */
-var VER="5.3.3";
+var VER="5.3.4";
 var GAPI="https://generativelanguage.googleapis.com/v1beta/";
 var WSURL="wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=";
 var LIVE_NEW="gemini-3.8-live",LIVE_OLD="gemini-3.1-flash-live-preview";
@@ -1166,7 +1166,7 @@ var curAi="",turnOpen=false;
 function onLive(m){
   if(m.setupComplete){L.ready=true;if(L.gate){L.gate.state="idle";L.gate.heard=""}L.muted=L.mode==="turn";try{startMicStream()}catch(e){toast(T("الميكروفون لا يعمل، تقدر تجاوب بالكتابة واللمس.","The microphone isn't working; you can answer by writing and tapping."),4500)}updateMic();setFriend("think");$("#cap").textContent="";
     var first=L.log.length?"(Reconnected after a short break) Continue from stage "+L.stage+" exactly where you were, with one short friendly line, without greeting again and without redrawing the board. The last things said were:\n"+L.log.slice(-6).map(function(x){return (x.w==="kid"?"CHILD: ":"YOU: ")+String(x.t).slice(0,200)}).join("\n"):
-      (L.stage>0?"(Start) Say your hello line, remind today's goal in one sentence, remember where you stopped last time, and continue from stage "+L.stage+" (call show_stage("+L.stage+")).":"(Start) Do the OPENING ROUTINE now."+(L.hi5?" "+L.kid.name+" has already given the high five on the card: after the hello line and the goal, "+(arr(L.rev).length?"stop and wait: the app gives you the review warm-up questions.":"call show_stage(0) and start the first part right away."):""));if(!L.log.length)L.lastKid=Date.now();
+      (L.stage>0?"(Start) This is a RESUMED session: do NOT ask for a high five and do not repeat the opening routine. Say a short hello, remind today's goal in one sentence, remember where you stopped last time, and continue from stage "+L.stage+" (call show_stage("+L.stage+")).":"(Start) Do the OPENING ROUTINE now."+(L.hi5?" "+L.kid.name+" has already given the high five on the card: after the hello line and the goal, "+(arr(L.rev).length?"stop and wait: the app gives you the review warm-up questions.":"call show_stage(0) and start the first part right away."):""));if(!L.log.length)L.lastKid=Date.now();
     sendText(first);return}
   if(gateOn()&&L.gate.state==="wait"&&(m.toolCall||(m.serverContent&&m.serverContent.modelTurn))&&isReq(L.gate.heard)){L.gate.state="pass";L.gate.heard="";L.gate.ok=false}
   if(gateOn()&&L.gate.state==="wait"&&!L.gate.passTurn&&!String(L.gate.heard||"").trim()&&Date.now()-(L.appSendAt||0)<2500&&(m.toolCall||(m.serverContent&&m.serverContent.modelTurn)))L.gate.passTurn=true;
@@ -1232,7 +1232,7 @@ function renderStage(i,silent,ov){if(!L)return;if(!ov)L.stage=i;var s=ov||L.plan
   if(!hint&&EXHINT[t])hint=EXHINT[t][L.lang==="en"?1:0];if(hint)H.innerHTML='<span>'+esc(hint)+'</span>';
   $("#board").classList.toggle("wb",t==="canvas");if(t==="canvas"){if(!penColor)setPen("#1C1C1E")}else if(penColor)setPen(null);
   applyStyle(L.style||styleFor(i));clipStop();var cb=$("#clip");cb.classList.remove("in");setTimeout(function(){cb.classList.add("in")},400);
-  revealAll();if(!ov){L.expect=null;if(L.gate){L.gate.keep=false;L.gate.reheard=false}reHear(false);hideAns();inkClear();if(i>=L.plan.stages.length-1)L.kid.resume=null;else L.kid.resume={lesson:L.lesson.id,stage:i};saveKids()}}
+  revealAll();if(!ov){L.maxStage=Math.max(L.maxStage||0,L.stage);L.expect=null;if(L.gate){L.gate.keep=false;L.gate.reheard=false}reHear(false);hideAns();inkClear();if(i>=L.plan.stages.length-1)L.kid.resume=null;else L.kid.resume={lesson:L.lesson.id,stage:i};saveKids()}}
 function arNumIf(n){return L&&L.lang==="ar"?arNum(n):String(n)}
 function shapeSVG(s){var p={circle:'<circle cx="40" cy="40" r="32"/>',square:'<rect x="10" y="10" width="60" height="60" rx="4"/>',rectangle:'<rect x="4" y="18" width="72" height="44" rx="4"/>',triangle:'<path d="M40 8 L74 70 H6 Z"/>',star:'<path d="M40 6l10 22 24 3-18 16 5 24-21-12-21 12 5-24L6 31l24-3z"/>',hexagon:'<path d="M22 8h36l18 32-18 32H22L4 40z"/>'}[s]||'<circle cx="40" cy="40" r="32"/>';
   return '<svg width="80" height="80" viewBox="0 0 80 80" role="img" aria-label="'+esc(s)+'" style="fill:#7FB6FF;stroke:#0A4F9E;stroke-width:3">'+p+'</svg>'}
@@ -1618,7 +1618,7 @@ $("#rAgain").onclick=function(){if(!L)return;var k=L.kid.id,l=L.lesson.id;L.kid.
 $("#rDone").onclick=function(){leaveLesson(true)};
 
 /* ---------- end, memory, history ---------- */
-function scoreOf(my){var n=0,r=0;my.plan.stages.forEach(function(s,i){if(GRADED.test(s.stage)&&s.check&&s.check.mode&&s.check.mode!=="none"){n++;if(my.sres&&my.sres[i]&&my.sres[i].ok)r++}});return n?{r:r,n:n}:null}
+function scoreOf(my){var n=0,r=0,mx=my.endInfo?my.plan.stages.length:Math.max(my.maxStage||0,my.stage||0);my.plan.stages.forEach(function(s,i){if(i<=mx&&GRADED.test(s.stage)&&s.check&&s.check.mode&&s.check.mode!=="none"){n++;if(my.sres&&my.sres[i]&&my.sres[i].ok)r++}});return n?{r:r,n:n}:null}
 function rMoreHTML(){var en=L.lang==="en",st=kidStats(L.kid),stk=streakOf(L.kid.id,Date.now()),met=st.met+(L.goalMet===true&&!st.metIds[L.lesson.id]?1:0),pct=st.n?Math.round(met/st.n*100):0,sc=L.score;
   return '<span>⭐ +'+arNumIf(L.stars)+'</span><span>🔥 '+arNumIf(stk)+' '+dayWord(stk,en)+'</span>'+(sc&&L.plan.kind==="quiz"?'<span>'+T("النتيجة","Score")+' '+arNumIf(sc.r)+' / '+arNumIf(sc.n)+'</span>':'')+(st.n?'<span class="pb"><span class="kbar"><i style="width:'+pct+'%"></i></span>'+arNumIf(met)+' / '+arNumIf(st.n)+' '+T("أهداف","goals")+'</span>':'')}
 function endLesson(a){if(!L)return;hideAns();L.endInfo=a;var en=L.lang==="en";
