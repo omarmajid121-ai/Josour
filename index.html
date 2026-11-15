@@ -167,7 +167,7 @@ h1{margin:0;font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.4px}
 .sb .cast{position:absolute;bottom:14px;inset-inline:0;display:flex;justify-content:center;gap:clamp(14px,4vw,40px);align-items:flex-end}
 .sb .cast>div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:15px;font-weight:700;color:#3A2A10}
 .sb .cast .ico{display:inline-flex;align-items:center;justify-content:center;width:1.4em;height:1.4em;border-radius:50%;background:rgba(255,255,255,.75);line-height:1;font-size:clamp(40px,5vw,58px)}.sb .cast .hero .ico{font-size:clamp(50px,6.4vw,74px);box-shadow:0 0 0 4px #FFD66B}
-.sb .bub{position:absolute;top:14px;inset-inline-start:50%;transform:translateX(-50%);max-width:70%;background:#fff;border-radius:18px;padding:10px 16px;font-size:clamp(17px,2vw,22px);font-weight:700;box-shadow:0 6px 16px rgba(0,0,0,.12);text-align:center}
+.sb .bub{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:max-content;max-width:min(70%,520px);background:#fff;border-radius:18px;padding:10px 16px;font-size:clamp(17px,2vw,22px);font-weight:700;box-shadow:0 6px 16px rgba(0,0,0,.12);text-align:center}
 .sb .nar{font-size:clamp(20px,2.4vw,28px);line-height:1.6;font-weight:600;color:#3A2A10;text-align:center}
 .sb .stop{align-self:center;display:flex;gap:10px;align-items:center;padding:10px 20px;border-radius:22px;background:#FFE9C7;color:#8A4B00;font-size:clamp(18px,2.2vw,24px);font-weight:800}
 .sb .nar.hide{display:none}
@@ -532,7 +532,7 @@ h1{margin:0;font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.4px}
 <script>
 "use strict";
 /* ======================= core ======================= */
-var VER="5.3.1";
+var VER="5.3.2";
 var GAPI="https://generativelanguage.googleapis.com/v1beta/";
 var WSURL="wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=";
 var LIVE_NEW="gemini-3.8-live",LIVE_OLD="gemini-3.1-flash-live-preview";
@@ -689,7 +689,7 @@ function openKid(id){var k=kidById(id);if(!k)return;selKid=id;var st=kidStats(k)
   var html='<div class="hd"><div style="display:flex;align-items:center;gap:12px">'+avHTML(k,48)+'<b>'+esc(k.name)+'، اختر درسك</b></div><button class="ibtn" data-close aria-label="إغلاق"><svg class="icon"><use href="#i-x"/></svg></button></div>';
   if(!getKey())html+='<div class="note warn"><span>يحتاج صديقك مفتاح Google AI ليتكلم. اطلب من ماما أو بابا إضافته.</span></div>';
   if(!ls.length)html+='<div class="empty"><b>ما في دروس لك بعد</b><span>اطلب من ماما أو بابا يصوّرون صفحات كتابك من «رفع درس».</span><button class="btn tint" data-go="lessons">رفع درس</button></div>';
-  else{html+='<div class="group">';ls.forEach(function(l){var r=resume&&resume.id===l.id;html+='<button class="lrow" style="width:100%;text-align:start" data-l="'+l.id+'"><span class="ic" style="background:#EAF2FF;color:var(--blue);font-size:26px">'+esc(l.icon||"📘")+'</span><span class="tx"><b>'+esc(l.title||"درس")+'</b><span>'+esc(subName(l.sub))+(r?" · نكمل من حيث وقفنا":"")+(st.metIds[l.id]?" · ✓ حققت الهدف":"")+'</span></span><svg class="icon" style="color:#8E8E93"><use href="#i-left"/></svg></button>'});html+='</div>'}
+  else{html+='<div class="group">';ls.forEach(function(l){var r=resume&&resume.id===l.id;html+='<button class="lrow" style="width:100%;text-align:start" data-l="'+l.id+'"><span class="ic" style="background:#EAF2FF;color:var(--blue);font-size:26px">'+esc(l.icon||"📘")+'</span><span class="tx"><b>'+esc(l.title||"درس")+'</b><span>'+({story:"📖 قصة",quiz:"✏️ اختبار",workbook:"📝 تمارين",review:"🔁 مراجعة",homework:"🎒 واجب"}[l.kind]||"🎓 درس")+' · '+esc(subName(l.sub))+(r?" · نكمل من حيث وقفنا":"")+(st.metIds[l.id]?" · ✓ حققت الهدف":"")+'</span></span><svg class="icon" style="color:#8E8E93"><use href="#i-left"/></svg></button>'});html+='</div>'}
   openSheet(html,function(sh){$$("[data-l]",sh).forEach(function(b){b.onclick=function(){if(kg&&!b.classList.contains("armed")){$$("[data-l]",sh).forEach(function(x){x.classList.remove("armed")});b.classList.add("armed");sayUI((b.querySelector("b")||b).textContent+(ken?". Tap again to start.":"، المس مرة ثانية لنبدأ"),ken);return}closeSheet();startLesson(k.id,b.getAttribute("data-l"))}});if(kg)sayUI(ken?k.name+", pick your lesson":k.name+"، اختر درسك",ken)})}
 
 /* ======================= parent ======================= */
@@ -1713,7 +1713,7 @@ function revResult(ok){var c=L.rev[L.revCur];if(!c)return "";c.t=(c.t||0)+1;var 
   my.revRes=arr(my.revRes).concat([{t:c.title,ok:first}]);hideAns();$("#ansTag").classList.remove("on");whenQuiet(function(){if(last)revEnd();else revAsk(L.revCur+1)});
   return (ok?" This was a review question: one short cheer only.":" This was a review question: say the right answer kindly in one sentence ("+c.q.answer+") and that it will come back soon.")+" Then stop and wait: the app tells you what comes next."}
 function revEnd(){if(!L||L.revDone)return;L.revCur=null;L.revDone=true;hideAns();$("#ansTag").classList.remove("on");sendText("[APP: the review warm-up is finished. Now call show_stage(0) and start today's first part.]")}
-function whenQuiet(fn,now){var my=L,n0=now?-1:(L.turns||0),t0=Date.now();var iv=setInterval(function(){if(L!==my){clearInterval(iv);return}var spoke=(L.turns||0)>n0,g=L.gate||{};
+function whenQuiet(fn,now){var my=L,t0=Date.now();var iv=setInterval(function(){if(L!==my){clearInterval(iv);return}var spoke=now||(L.lastAudio||0)>t0+200,g=L.gate||{};
   if(((spoke||Date.now()-t0>12000)&&!speaking()&&!turnOpen&&!/^(drop|judge)$/.test(g.state))||Date.now()-t0>30000){clearInterval(iv);setTimeout(function(){if(L===my)fn()},500)}},400)}
 /* ---------- rewards ---------- */
 function dayKey(t){var d=new Date(t);return d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate()}
@@ -1803,7 +1803,7 @@ EXTRA.story=function(sc,box,add,mk){var en=L.lang==="en",st=(L.plan.stages[L.sta
   if(sc.sky)scn.style.setProperty("--sbBg",{night:"linear-gradient(180deg,#1E2A5A 0 62%,#2E4A3A 62%)",sea:"linear-gradient(180deg,#BEE7FF 0 50%,#4FA9DC 50%)",desert:"linear-gradient(180deg,#FFE6B8 0 60%,#F1C27D 60%)",indoor:"linear-gradient(180deg,#FFF1DC 0 70%,#E6C9A0 70%)",space:"linear-gradient(180deg,#0B1030,#2A2160)"}[sc.sky]||"");
   bgs.forEach(function(b,i){var e=mk("span","bgi",esc(b));e.style.left=pos[i][0]+"%";e.style.top=pos[i][1]+"%";scn.appendChild(e)});
   var cast=mk("div","cast"),hc=mk("div","hero",'<span class="ico">'+esc(hero)+'</span><span>'+esc(hname)+'</span>');cast.appendChild(hc);
-  arr(sc.cast).slice(0,3).forEach(function(c){c=safeObj(c,{});cast.appendChild(mk("div","",'<span class="ico">'+esc(String(c.icon||"🙂").slice(0,4))+'</span><span>'+esc(String(c.name||"").slice(0,18))+'</span>'))});scn.appendChild(cast);
+  arr(sc.cast).filter(function(c){c=safeObj(c,{});return String(c.name||"").trim()!==String(hname).trim()}).slice(0,3).forEach(function(c){c=safeObj(c,{});cast.appendChild(mk("div","",'<span class="ico">'+esc(String(c.icon||"🙂").slice(0,4))+'</span><span>'+esc(String(c.name||"").slice(0,18))+'</span>'))});scn.appendChild(cast);
   if(sc.say)scn.appendChild(mk("div","bub",esc(String(sc.say).slice(0,90))));w.appendChild(scn);
   var nar=mk("div","nar",esc(String(sc.text||"").slice(0,220)));if(!sc.text)nar.classList.add("hide");w.appendChild(nar);
   if(pause)w.appendChild(mk("div","stop",'⏸️ '+esc(T("القصة توقفت! "+hname+" يحتاج مساعدتك","The story stopped! "+hname+" needs your help"))));
