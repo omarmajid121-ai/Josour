@@ -112,7 +112,7 @@ h1{margin:0;font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.4px}
 /* sheet */
 .scrim{position:fixed;inset:0;background:rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:opacity var(--m3) var(--in);z-index:60}
 .scrim.on{opacity:1;pointer-events:auto;transition:opacity var(--m4) var(--out)}
-.sheet{position:fixed;left:50%;top:50%;width:min(640px,94vw);max-height:90vh;overflow:auto;transform:translate(-50%,-46%);opacity:0;pointer-events:none;z-index:61;border-radius:26px;background:#F2F2F7;padding:22px;display:flex;flex-direction:column;gap:16px;transition:opacity var(--m3) var(--in),transform var(--m3) var(--in)}
+.sheet>*{flex-shrink:0}.sheet>.seg{display:flex;width:100%}.sheet>.seg>button{flex:1 1 0;min-width:0;padding:0 4px}.sheet{scrollbar-width:thin}.sheet{position:fixed;left:50%;top:50%;width:min(640px,94vw);max-height:90vh;max-height:90dvh;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;overflow:auto;transform:translate(-50%,-46%);opacity:0;pointer-events:none;z-index:61;border-radius:26px;background:#F2F2F7;padding:22px;display:flex;flex-direction:column;gap:16px;transition:opacity var(--m3) var(--in),transform var(--m3) var(--in)}
 .sheet.on{opacity:1;transform:translate(-50%,-50%);pointer-events:auto;transition:opacity var(--m4) var(--out),transform var(--m4) var(--out)}
 .sheet .hd{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .sheet .hd b{font-size:22px}
@@ -557,7 +557,7 @@ h1{margin:0;font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.4px}
 <script>
 "use strict";
 /* ======================= core ======================= */
-var VER="6.0.3";
+var VER="6.0.4";
 var GAPI="https://generativelanguage.googleapis.com/v1beta/";
 var WSURL="wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=";
 var LIVE_NEW="gemini-3.8-live",LIVE_OLD="gemini-3.1-flash-live-preview";
